@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 import { createBridge, MAX_BYTES } from "./bridge.mjs";
-const forward = createBridge({ token: process.env.TASKBOUNTY_BOARD_TOKEN });
+import { loadIdentity, saveIdentity } from "./identity.mjs";
+const identityFile = process.env.TASKBOUNTY_BOARD_TOKEN_FILE;
+let token;
+try { token = process.env.TASKBOUNTY_BOARD_TOKEN || (identityFile ? await loadIdentity(identityFile) : undefined); }
+catch { console.error("Board identity file must be a private regular file containing a valid identity token."); process.exit(1); }
+const forward = createBridge({ token, onIdentity: identityFile ? value => saveIdentity(identityFile, value) : undefined,
+  onPersistenceError: () => console.error("Board identity is retained for this session, but could not be saved to the configured identity file.") });
 let pending = Buffer.alloc(0);
 let oversized = false;
 const write = (value) => { if (value) process.stdout.write(`${JSON.stringify(value)}\n`); };
