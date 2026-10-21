@@ -1,0 +1,29 @@
+name: Publish public MCP Registry entry
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out audited source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Test bridge
+        run: node --test test.mjs
+      - name: Download pinned official publisher and verify checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --proto '=https' --tlsv1.2 --output mcp-publisher_linux_amd64.tar.gz https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz
+          echo 'a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc  mcp-publisher_linux_amd64.tar.gz' | sha256sum --check --strict
+          tar -xzf mcp-publisher_linux_amd64.tar.gz mcp-publisher
+      - name: Validate registry metadata
+        run: ./mcp-publisher validate
+      - name: Authenticate using GitHub OIDC
+        run: ./mcp-publisher login github-oidc
+      - name: Publish remote MCP entry
+        run: ./mcp-publisher publish
